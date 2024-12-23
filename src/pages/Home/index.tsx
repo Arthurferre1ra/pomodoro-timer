@@ -1,63 +1,106 @@
-import { Play } from "phosphor-react"
-import { CountDownContainer, FormContainer, HomeContainer, MinutesAmountInput, Separator, StartCountDownButton, TaskInput } from "./styles"
+import { HandPalm, Play } from "phosphor-react"
+import { HomeContainer, StartCountDownButton, StopCountDownButton } from "./styles"
+import * as zod from 'zod'
 import { useForm } from 'react-hook-form'
+import { createContext, useEffect, useState } from "react"
+import { differenceInSeconds } from "date-fns"
+import { NewCycleForm } from "./components/NewCycleForm"
+import { CountDown } from "./components/CountDown"
+
+interface Cycle {
+  id: string
+  task: string
+  minutesAmount: number
+  startDate: Date
+  interruptedDate?: Date
+  finishedDate: Date
+}
+
+interface CyclesContextData {
+  activeCycle: Cycle | undefined
+  activeCycleId: string | null
+  markCurrentCycleAsFinished: () => void
+}
+
+export const CyclesContext = createContext({} as CyclesContextData);
 
 export function Home() {
-  const { register, handleSubmit, watch } = useForm();
+  const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [activeCycleId, setActiveCycleId] = useState<string | null>(null)
 
-  function handleCreateNewCycle(data: any) {
+  const activeCycle = cycles.find((cycle) => cycle.id == activeCycleId);
 
+  function markCurrentCycleAsFinished() {
+    setCycles(state => (state.map((cycle) => {
+      if (cycle.id == activeCycleId) {
+        return {...cycle, finishedDate: new Date() }
+      } else {
+        return cycle;
+      }
+    })))
   }
 
-  const task = watch('task');
-  const isSubmitDisable = !task;
+  // function handleCreateNewCycle(data: NewCycleFormData) {
+  //   const id = String(new Date().getTime());
+
+  //   const newCycle: Cycle = {
+  //     id,
+  //     task: data.task,
+  //     minutesAmount: data.minutesAmount,
+  //     startDate: new Date(),
+  //     finishedDate: new Date()
+  //   }
+
+  //   setCycles((state) => [...state, newCycle])
+  //   setActiveCycleId(id)
+  //   setAmountSecondsPassed(0)
+
+  //   reset();
+  // }
+
+  function handleInterruptCycle() {
+    setCycles(state => state.map((cycle) => {
+      if (cycle.id == activeCycleId) {
+        return {...cycle, interruptedDate: new Date() }
+      } else {
+        return cycle;
+      }
+    }));
+    setActiveCycleId(null)
+  }
+
+  // const task = watch('task');
+  // const isSubmitDisable = !task;
+
+  /**
+   * prop Drilling -> Quando nós temos MUITAS propriedades APENAS para fazer a comnicação entre componentes.
+   * Context API -> É utilizado para compartilhar informações entre VÁRIOS componentes ao mesmo tempo.
+   */
 
     return (
-
         <HomeContainer>
-          <form onSubmit={handleSubmit(handleCreateNewCycle)} action="">
-            <FormContainer>
-                <label htmlFor="task">Vou trabalhar em</label>
-                <TaskInput 
-                id="task" 
-                list="task-suggestions"
-                placeholder="Dê um nome para seu projeto"
-                {...register('task')}
+          <form /* onSubmit={handleSubmit(handleCreateNewCycle)}*/> 
+            <CyclesContext.Provider value={{ activeCycle, activeCycleId, markCurrentCycleAsFinished }}
+            >
+              {/* <NewCycleForm /> */}
+              <CountDown />
+            </CyclesContext.Provider>
+
+             {activeCycle ? (
+              <StopCountDownButton type="button">
+                <HandPalm size={24}
+                onClick={handleInterruptCycle}
                 />
+                Interromper
+            	</StopCountDownButton>
+             ) : (
 
-                <datalist id="task-suggestions">
-                  <option value="Projeto 1" />
-                  <option value="Projeto 2" />
-                  <option value="Projeto 3" />
-                </datalist>
-
-                <label htmlFor="minutesAmount">durante</label>
-                <MinutesAmountInput 
-                type="number" 
-                id="minutesAmount" 
-                placeholder="00"
-                step={5}
-                min={5}
-                max={60}
-                {...register('minutesAmount', {valueAsNumber: true} )}
-                />
-                <span>minutos.</span>
-            </FormContainer>
-
-             <CountDownContainer>
-                <span>0</span>
-                <span>0</span>
-                <Separator>:</Separator>
-                <span>0</span>
-                <span>0</span>
-             </CountDownContainer>
-
-            <StartCountDownButton disabled={isSubmitDisable} type="submit">
+              <StartCountDownButton /*disabled={isSubmitDisable}*/ type="submit">
                 <Play size={24}/>
                 Começar
-            </StartCountDownButton>
+              </StartCountDownButton>
+             )}
           </form>
-
         </HomeContainer>  
     )
 }
